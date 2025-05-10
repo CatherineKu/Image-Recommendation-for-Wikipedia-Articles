@@ -7,4 +7,4 @@ Our dataset includes:
 - **5,000+** featured Wikipedia articles
 - **30,000+** associated images with metadata (title, URL, and description)
 
-We focused on high-quality, curated articles with minimal missing data. Edge cases such as articles with excessive image fragments (e.g., *Victoria Cross*) were identified and handled.
+We focused on high-quality, curated articles with minimal missing data. Edge cases such as articles with excessive image fragments were identified and handled.
