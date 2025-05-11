@@ -22,6 +22,8 @@ We focused on high-quality, curated articles with minimal missing data. Edge cas
 - **Two versions**:
   - **Without image**: URL and caption-only matching
   - **With image**: CLIP + URL + caption via attention-based fusion
+
+![MTProp Architecture](MTProp.png)
  
 ### 3. **Model Improvement**
 #### a. **MTProp with LLM-driven**
