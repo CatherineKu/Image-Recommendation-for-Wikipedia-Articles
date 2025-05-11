@@ -24,11 +24,11 @@ We focused on high-quality, curated articles with minimal missing data. Edge cas
   - **With image**: CLIP + URL + caption via attention-based fusion
  
 ### 3. **Model Improvement**
-#### a. **MTProp with LLM-driven **
+#### a. **MTProp with LLM-driven**
 - Uses Flan-T5 to extract 512-token text snippets relevant to each image.
 - Enables training on focused (image, text) pairs.
 
-#### b. **MTProp with Text Sliding-Window **
+#### b. **MTProp with Text Sliding-Window**
 - Splits long text into multiple fragments (128 tokens with 64 tokens overlapping)
 - Compares images to each fragment individually for finer-grained matching
 
@@ -37,10 +37,10 @@ We focused on high-quality, curated articles with minimal missing data. Edge cas
 | Model                          | Recall@1 |      Recall@5      | Recall@10 |
 |--------------------------------|----------|--------------------|-----------|
 | Word2VisualVec                 |   7.2%   |   20.2%(Recall@3)  |   28.3%   |
-| MTProp (Text-only)             |   8.87%  |        44.33%      |  88.65%   |
-| MTProp (Multimodal)            |   7.5%   |        9.0%        |   23.0%   |
-| MTProp with LLM-driven         |          |          |           |
-| MTProp with Text Sliding-Window|          |          |           |
+| MTProp (Text-only)             |   8.87%  |        44.33%      |   88.65%  |
+| MTProp (Multimodal)            |   7.5%   |       27.03%       |   43.44%  |
+| MTProp with LLM-driven         |          |                    |           |
+| MTProp with Text Sliding-Window|  47.88%  |       86.73%       |   94.64%  |
 
 ## 🔍 Analysis
 
