@@ -14,7 +14,7 @@ We focused on high-quality, curated articles with minimal missing data. Edge cas
 ### 1. **Baseline: Word2VisualVec**
 - **Text Encoder**: Combination of Bag of Words (BoW), Word2Vec, and GRU
 - **Image Encoder**: ResNet-152 (2048-dim vector)
-- Text and image vectors projected into a common space using regression and compared using cosine similarity.
+- Text and image vectors projected into a common space using regression and compared using cosine similarity
 
 ### 2. **Advanced: MTProp (Multi-modal Text Proposal)**
 - **Text Encoder**: XLM-RoBERTa + Transformer Encoder
@@ -25,8 +25,8 @@ We focused on high-quality, curated articles with minimal missing data. Edge cas
  
 ### 3. **Model Improvement**
 #### a. **MTProp with LLM-driven**
-- Uses Flan-T5 to extract 512-token text snippets relevant to each image.
-- Enables training on focused (image, text) pairs.
+- Uses Flan-T5 to extract 512-token text snippets relevant to each image
+- Enables training on focused (image, text) pairs
 
 #### b. **MTProp with Text Sliding-Window**
 - Splits long text into multiple fragments (128 tokens with 64 tokens overlapping)
