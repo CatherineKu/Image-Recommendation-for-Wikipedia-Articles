@@ -8,6 +8,7 @@ This project develops a multimodal matching system that recommends relevant imag
 Our dataset includes:
 - **5,000+** featured Wikipedia articles
 - **30,000+** associated images with metadata (title, URL, and description)
+Original dataset download link: https://drive.google.com/file/d/1l0Oyv2Y6LmPGN3lP9MB6i8WWCinqkYPk/view
 
 We focused on high-quality, curated articles with minimal missing data. Edge cases such as articles with excessive image fragments were identified and handled.
 
