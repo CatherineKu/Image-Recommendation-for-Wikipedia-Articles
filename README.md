@@ -62,4 +62,5 @@ We focused on high-quality, curated articles with minimal missing data. Edge cas
 1. Onyshchak, Oleh, and Miriam Redi. *Image Recommendation for Wikipedia Articles*. 2019.
    https://github.com/OlehOnyshchak/w2vv
 2. Messina et al. *Transformer-Based Multi-modal Proposal and Re-Rank for Wikipedia Image-Caption Matching*. 2022.
+   https://github.com/mesnico/Wiki-Image-Caption-Matching
 
