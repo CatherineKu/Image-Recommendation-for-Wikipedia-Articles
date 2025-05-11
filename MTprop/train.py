@@ -1,25 +1,21 @@
 import os
-
+import matplotlib.pyplot as plt
 import tqdm
 import yaml
-import json
 import numpy as np
 from torch.utils.data import DataLoader
 from torchvision import transforms as T
 import torch
 import clip
 from transformers import AutoTokenizer
-from sklearn.model_selection import StratifiedKFold, KFold, train_test_split
+from sklearn.model_selection import StratifiedKFold
 import logging
 from torch.utils.tensorboard import SummaryWriter
-
 import argparse
 from dataset_original import WikipediaDataset, collate_fn_without_nones
 import utils_original as utils
-
 from baseline_model_CLIP import MatchingModel
 import evaluation
-
 from shutil import copyfile
 
 
@@ -67,6 +63,7 @@ def main():
         train_df.loc[train_idx, 'Fold'] = 1
         train(opt, config, train_df, fold=0)
 
+
 def train(opt, config, data_df, fold=0):
     epoch_train_losses = []
     epoch_val_losses = []
@@ -74,36 +71,44 @@ def train(opt, config, data_df, fold=0):
     no_improve_epochs = 0
     tb_logger = SummaryWriter(log_dir=opt.logger_name, comment='')
     experiment_path = tb_logger.get_logdir()
+    os.makedirs(experiment_path, exist_ok=True)
     copyfile(opt.config, os.path.join(experiment_path, 'config.yaml'))
 
     _, clip_transform = clip.load(config['image-model']['model-name'])
     tokenizer = AutoTokenizer.from_pretrained(config['text-model']['model-name'])
 
-    x_train, x_valid = data_df.query(f"Fold != {fold}"), data_df.query(f"Fold == {fold}")
-    train_dataset = WikipediaDataset(x_train, tokenizer, max_length=80, split='trainval', transforms=clip_transform, include_images=not config['image-model']['disabled'], image_feature_mapping_path=opt.img_cache)
-    val_dataset = WikipediaDataset(x_valid, tokenizer, max_length=80, split='trainval', transforms=clip_transform, include_images=not config['image-model']['disabled'], image_feature_mapping_path=opt.img_cache)
+    x_train = data_df.query(f"Fold != {fold}")
+    x_valid = data_df.query(f"Fold == {fold}")
+    train_dataset = WikipediaDataset(x_train, tokenizer, max_length=80, split='trainval',
+                                     transforms=clip_transform, include_images=not config['image-model']['disabled'],
+                                     image_feature_mapping_path=opt.img_cache)
+    val_dataset = WikipediaDataset(x_valid, tokenizer, max_length=80, split='trainval',
+                                   transforms=clip_transform, include_images=not config['image-model']['disabled'],
+                                   image_feature_mapping_path=opt.img_cache)
 
-    train_dataloader = DataLoader(train_dataset, batch_size=config['training']['bs'], shuffle=True, num_workers=opt.workers, collate_fn=collate_fn_without_nones)
-    val_dataloader = DataLoader(val_dataset, batch_size=config['training']['bs'], shuffle=False, num_workers=opt.workers, collate_fn=collate_fn_without_nones)
+    train_dataloader = DataLoader(train_dataset, batch_size=config['training']['bs'], shuffle=True,
+                                  num_workers=opt.workers, collate_fn=collate_fn_without_nones)
+    val_dataloader = DataLoader(val_dataset, batch_size=config['training']['bs'], shuffle=False,
+                                num_workers=opt.workers, collate_fn=collate_fn_without_nones)
 
     model = MatchingModel(config)
     if torch.cuda.is_available():
         model.cuda()
+
     optimizer = torch.optim.Adam(model.parameters(), lr=config['training']['lr'])
 
     scheduler_name = config['training']['scheduler']
     if scheduler_name == 'steplr':
-        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, gamma=config['training']['gamma'], milestones=config['training']['milestones'])
-    elif scheduler_name is None:
-        scheduler = None
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, gamma=config['training']['gamma'],
+                                                         milestones=config['training']['milestones'])
     else:
-        raise ValueError('{} scheduler is not available'.format(scheduler_name))
+        scheduler = None
 
     start_epoch = 0
     if opt.resume or opt.load_model:
         filename = opt.resume if opt.resume else opt.load_model
         if os.path.isfile(filename):
-            print(("=> loading checkpoint '{}'".format(filename)))
+            print(f"=> loading checkpoint '{filename}'")
             checkpoint = torch.load(filename, map_location='cpu')
             model.load_state_dict(checkpoint['model'], strict=False)
             if torch.cuda.is_available():
@@ -113,11 +118,11 @@ def train(opt, config, data_df, fold=0):
                 optimizer.load_state_dict(checkpoint['optimizer'])
                 if checkpoint['scheduler'] is not None:
                     scheduler.load_state_dict(checkpoint['scheduler'])
-                print(("=> loaded checkpoint '{}' (epoch {})".format(opt.resume, start_epoch)))
+                print(f"=> loaded checkpoint '{opt.resume}' (epoch {start_epoch})")
             else:
-                print(("=> loaded only model from checkpoint '{}'".format(opt.load_model)))
+                print(f"=> loaded only model from checkpoint '{opt.load_model}'")
         else:
-            print(("=> no checkpoint found at '{}'".format(opt.resume)))
+            print(f"=> no checkpoint found at '{filename}'")
 
     model.train()
     best_r5 = 0
@@ -141,13 +146,14 @@ def train(opt, config, data_df, fold=0):
 
             if global_iteration % opt.log_step == 0:
                 mean_loss = running_loss / opt.log_step
-                progress_bar.set_postfix(dict(loss='{:.2}'.format(mean_loss)))
+                progress_bar.set_postfix(dict(loss='{:.2f}'.format(mean_loss)))
                 running_loss = 0
 
             if alphas is not None:
                 alphas = alphas.mean(dim=0)
                 alphas = {'img_alpha': alphas[0].item(), 'txt_alpha': alphas[1].item()}
                 tb_logger.add_scalars("Training/Alphas", alphas, global_iteration)
+
             tb_logger.add_scalar("Training/Epoch", epoch, global_iteration)
             tb_logger.add_scalar("Training/Loss", loss.item(), global_iteration)
             tb_logger.add_scalar("Training/Learning_Rate", optimizer.param_groups[0]['lr'], global_iteration)
@@ -155,8 +161,7 @@ def train(opt, config, data_df, fold=0):
         epoch_loss = total_loss / len(train_dataloader)
         epoch_train_losses.append(epoch_loss)
 
-        metrics, alphas = validate(val_dataloader, model)
-        val_loss = 1 - (metrics['r1'] + metrics['r5'] + metrics['r10']) / 300
+        metrics, alphas, val_loss = validate(val_dataloader, model)
         epoch_val_losses.append(val_loss)
 
         for m, v in metrics.items():
@@ -172,9 +177,9 @@ def train(opt, config, data_df, fold=0):
                 'epoch': epoch,
                 'model': model.state_dict(),
                 'optimizer': optimizer.state_dict(),
-                'scheduler': scheduler.state_dict()}
-            latest = os.path.join(experiment_path, 'model_best_fold{}.pt'.format(fold))
-            torch.save(checkpoint, latest)
+                'scheduler': scheduler.state_dict() if scheduler else None
+            }
+            torch.save(checkpoint, os.path.join(experiment_path, f'model_best_fold{fold}.pt'))
             best_r5 = metrics['r5']
             no_improve_epochs = 0
         else:
@@ -184,25 +189,38 @@ def train(opt, config, data_df, fold=0):
                 print("Early stopping triggered.")
                 break
 
-        scheduler.step()
+        if scheduler:
+            scheduler.step()
 
+    # Plot and save loss curve
     plt.figure(figsize=(8, 5))
     plt.plot(epoch_train_losses, label='Train Loss')
     plt.plot(epoch_val_losses, label='Validation Loss')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
-    plt.title('Training and Validation Loss')
+    plt.title('Training and Validation Loss Curve')
     plt.legend()
     plt.grid(True)
     plt.savefig(os.path.join(experiment_path, 'loss_plot.png'))
+    plt.close()
     print("Saved loss plot at:", os.path.join(experiment_path, 'loss_plot.png'))
+
 
 def validate(val_dataloader, model):
     model.eval()
+    total_loss = 0.0
+    with torch.no_grad():
+        for data in val_dataloader:
+            loss, _ = model(*data)
+            total_loss += loss.item()
+    avg_val_loss = total_loss / len(val_dataloader)
+
     query_feats, caption_feats, alphas = evaluation.encode_data(model, val_dataloader)
     metrics = evaluation.compute_recall(query_feats, caption_feats)
+
     model.train()
-    return metrics, alphas
+    return metrics, alphas, avg_val_loss
+
 
 if __name__ == '__main__':
     main()
