@@ -43,6 +43,15 @@ We focused on high-quality, curated articles with minimal missing data. Edge cas
 | MTProp with Text Sliding-Window|  47.88%  |       86.73%       |   94.64%  |
 
 ## 🔍 Analysis
+- MTProp outperforms the baseline by better leveraging semantic embeddings via XLM-RoBERTa.
+- Surprisingly, MCProp **without** image features outperformed the multimodal version, likely due to:
+  - Long input texts exceeding XLM-RoBERTa’s optimal length (512 tokens)
+  - Modality fusion noise from unrelated visual information
+- Improvement directions:
+  - More effective fusion strategies
+  - Better segmentation of input text
+  - Enhance local alignments between text and images via pseudo-label filtering
+- MTProp with Text Sliding-Window dramatically outperforming earlier models. This confirms that splitting long Wikipedia articles into smaller, focused text fragments significantly enhances retrieval performance by better isolating semantically relevant content.
 
 ## 📜 References
 1. Onyshchak, Oleh, and Miriam Redi. *Image Recommendation for Wikipedia Articles*. 2019.  
