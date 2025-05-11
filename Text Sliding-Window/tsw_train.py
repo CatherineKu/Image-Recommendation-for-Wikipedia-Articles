@@ -1,15 +1,13 @@
 import os
 import tqdm
 import yaml
-import json
 import numpy as np
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
-from torchvision import transforms as T
 import torch
 import clip
 from transformers import AutoTokenizer
-from sklearn.model_selection import StratifiedKFold, KFold, train_test_split
+from sklearn.model_selection import StratifiedKFold
 import logging
 from torch.utils.tensorboard import SummaryWriter
 import argparse
@@ -68,19 +66,24 @@ def train(opt, config, data_df, fold=0):
     epoch_val_losses = []
     patience = 3
     no_improve_epochs = 0
-    tb_logger = SummaryWriter(log_dir=opt.logger_name, comment='')
+    tb_logger = SummaryWriter(log_dir=opt.logger_name)
     experiment_path = tb_logger.get_logdir()
+    os.makedirs(experiment_path, exist_ok=True)
     copyfile(opt.config, os.path.join(experiment_path, 'config.yaml'))
 
     _, clip_transform = clip.load(config['image-model']['model-name'])
     tokenizer = AutoTokenizer.from_pretrained(config['text-model']['model-name'])
 
     x_train, x_valid = data_df.query(f"Fold != {fold}"), data_df.query(f"Fold == {fold}")
-    train_dataset = WikipediaDataset(x_train, tokenizer, max_length=80, split='trainval', transforms=clip_transform, include_images=not config['image-model']['disabled'], image_feature_mapping_path=opt.img_cache)
-    val_dataset = WikipediaDataset(x_valid, tokenizer, max_length=80, split='trainval', transforms=clip_transform, include_images=not config['image-model']['disabled'], image_feature_mapping_path=opt.img_cache)
+    train_dataset = WikipediaDataset(x_train, tokenizer, max_length=80, split='trainval', transforms=clip_transform,
+                                     include_images=not config['image-model']['disabled'], image_feature_mapping_path=opt.img_cache)
+    val_dataset = WikipediaDataset(x_valid, tokenizer, max_length=80, split='trainval', transforms=clip_transform,
+                                   include_images=not config['image-model']['disabled'], image_feature_mapping_path=opt.img_cache)
 
-    train_dataloader = DataLoader(train_dataset, batch_size=config['training']['bs'], shuffle=True, num_workers=opt.workers, collate_fn=collate_fn_without_nones)
-    val_dataloader = DataLoader(val_dataset, batch_size=config['training']['bs'], shuffle=False, num_workers=opt.workers, collate_fn=collate_fn_without_nones)
+    train_dataloader = DataLoader(train_dataset, batch_size=config['training']['bs'], shuffle=True,
+                                  num_workers=opt.workers, collate_fn=collate_fn_without_nones)
+    val_dataloader = DataLoader(val_dataset, batch_size=config['training']['bs'], shuffle=False,
+                                num_workers=opt.workers, collate_fn=collate_fn_without_nones)
 
     model = MatchingModel(config)
     if torch.cuda.is_available():
@@ -89,17 +92,16 @@ def train(opt, config, data_df, fold=0):
 
     scheduler_name = config['training']['scheduler']
     if scheduler_name == 'steplr':
-        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, gamma=config['training']['gamma'], milestones=config['training']['milestones'])
-    elif scheduler_name is None:
-        scheduler = None
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, gamma=config['training']['gamma'],
+                                                         milestones=config['training']['milestones'])
     else:
-        raise ValueError('{} scheduler is not available'.format(scheduler_name))
+        scheduler = None
 
     start_epoch = 0
     if opt.resume or opt.load_model:
         filename = opt.resume if opt.resume else opt.load_model
         if os.path.isfile(filename):
-            print(("=> loading checkpoint '{}'".format(filename)))
+            print(f"=> loading checkpoint '{filename}'")
             checkpoint = torch.load(filename, map_location='cpu')
             model.load_state_dict(checkpoint['model'], strict=False)
             if torch.cuda.is_available():
@@ -109,11 +111,11 @@ def train(opt, config, data_df, fold=0):
                 optimizer.load_state_dict(checkpoint['optimizer'])
                 if checkpoint['scheduler'] is not None:
                     scheduler.load_state_dict(checkpoint['scheduler'])
-                print(("=> loaded checkpoint '{}' (epoch {})".format(opt.resume, start_epoch)))
+                print(f"=> loaded checkpoint '{opt.resume}' (epoch {start_epoch})")
             else:
-                print(("=> loaded only model from checkpoint '{}'".format(opt.load_model)))
+                print(f"=> loaded only model from checkpoint '{opt.load_model}'")
         else:
-            print(("=> no checkpoint found at '{}'".format(opt.resume)))
+            print(f"=> no checkpoint found at '{filename}'")
 
     model.train()
     best_r5 = 0
@@ -151,12 +153,12 @@ def train(opt, config, data_df, fold=0):
         epoch_loss = total_loss / len(train_dataloader)
         epoch_train_losses.append(epoch_loss)
 
-        metrics, alphas = validate(val_dataloader, model)
-        val_loss = 1 - (metrics['r1'] + metrics['r5'] + metrics['r10']) / 300
+        metrics, alphas, val_loss = validate(val_dataloader, model)
         epoch_val_losses.append(val_loss)
+        tb_logger.add_scalar("Validation/Loss", val_loss, epoch)
 
         for m, v in metrics.items():
-            tb_logger.add_scalar("Validation/{}".format(m), v, epoch)
+            tb_logger.add_scalar(f"Validation/{m}", v, epoch)
         if alphas is not None:
             tb_logger.add_scalars("Validation/Alphas", alphas, epoch)
         print(metrics)
@@ -168,9 +170,9 @@ def train(opt, config, data_df, fold=0):
                 'epoch': epoch,
                 'model': model.state_dict(),
                 'optimizer': optimizer.state_dict(),
-                'scheduler': scheduler.state_dict()}
-            latest = os.path.join(experiment_path, 'model_best_fold{}.pt'.format(fold))
-            torch.save(checkpoint, latest)
+                'scheduler': scheduler.state_dict() if scheduler else None
+            }
+            torch.save(checkpoint, os.path.join(experiment_path, f'model_best_fold{fold}.pt'))
             best_r5 = metrics['r5']
             no_improve_epochs = 0
         else:
@@ -180,7 +182,8 @@ def train(opt, config, data_df, fold=0):
                 print("Early stopping triggered.")
                 break
 
-        scheduler.step()
+        if scheduler:
+            scheduler.step()
 
     plt.figure(figsize=(8, 5))
     plt.plot(epoch_train_losses, label='Train Loss')
@@ -191,14 +194,22 @@ def train(opt, config, data_df, fold=0):
     plt.legend()
     plt.grid(True)
     plt.savefig(os.path.join(experiment_path, 'loss_plot.png'))
+    plt.close()
     print("✅ Saved loss plot at:", os.path.join(experiment_path, 'loss_plot.png'))
 
 def validate(val_dataloader, model):
     model.eval()
+    total_loss = 0.0
+    with torch.no_grad():
+        for data in val_dataloader:
+            loss, _ = model(*data)
+            total_loss += loss.item()
+    avg_val_loss = total_loss / len(val_dataloader)
+
     query_feats, caption_feats, alphas = evaluation.encode_data(model, val_dataloader)
     metrics = evaluation.compute_recall(query_feats, caption_feats)
     model.train()
-    return metrics, alphas
+    return metrics, alphas, avg_val_loss
 
 if __name__ == '__main__':
     main()
