@@ -2,6 +2,8 @@
 
 This project develops a multimodal matching system that recommends relevant images for Wikipedia articles using advanced deep learning techniques. By enhancing the visual context of Wikipedia, we aim to improve reader engagement and accessibility, particularly for visual learners and second-language readers.
 
+![Demo](Demo.png)
+
 ## 📦 Dataset
 Our dataset includes:
 - **5,000+** featured Wikipedia articles
