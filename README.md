@@ -59,6 +59,7 @@ We focused on high-quality, curated articles with minimal missing data. Edge cas
 - MTProp with Text Sliding-Window dramatically outperforming earlier models. This confirms that splitting long Wikipedia articles into smaller, focused text fragments significantly enhances retrieval performance by better isolating semantically relevant content.
 
 ## 📜 References
-1. Onyshchak, Oleh, and Miriam Redi. *Image Recommendation for Wikipedia Articles*. 2019.  
+1. Onyshchak, Oleh, and Miriam Redi. *Image Recommendation for Wikipedia Articles*. 2019.
+   https://github.com/OlehOnyshchak/w2vv
 2. Messina et al. *Transformer-Based Multi-modal Proposal and Re-Rank for Wikipedia Image-Caption Matching*. 2022.
 
