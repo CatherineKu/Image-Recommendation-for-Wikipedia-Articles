@@ -44,8 +44,8 @@ We focused on high-quality, curated articles with minimal missing data. Edge cas
 | Word2VisualVec                 |   7.2%   |   20.2%(Recall@3)  |   28.3%   |
 | MTProp (Text-only)             |   8.87%  |        44.33%      |   88.65%  |
 | MTProp (Multimodal)            |   7.5%   |       27.03%       |   43.44%  |
-| MTProp with LLM-driven         |          |                    |           |
-| MTProp with Text Sliding-Window|  47.88%  |       86.73%       |   94.64%  |
+| MTProp with LLM-driven         |  17.22%  |       47.13%       |   63.18%  |
+| MTProp with Text Sliding-Window|  55.33%  |       90.74%       |   96.98%  |
 
 ## 🔍 Analysis
 - MTProp outperforms the baseline by better leveraging semantic embeddings via XLM-RoBERTa.
